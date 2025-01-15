@@ -116,3 +116,50 @@ function gameLoop() {
 }
 
 gameLoop();
+// ボタンの参照
+const leftButton = document.getElementById('left');
+const rotateButton = document.getElementById('rotate');
+const rightButton = document.getElementById('right');
+const dropButton = document.getElementById('drop');
+
+// 操作用の関数
+function moveLeft() {
+    currentPiece.x--;
+    if (collision()) {
+        currentPiece.x++;
+    }
+}
+
+function moveRight() {
+    currentPiece.x++;
+    if (collision()) {
+        currentPiece.x--;
+    }
+}
+
+function rotatePiece() {
+    const prevShape = currentPiece.shape;
+    currentPiece.shape = rotate(currentPiece.shape);
+    if (collision()) {
+        currentPiece.shape = prevShape; // 回転を戻す
+    }
+}
+
+function dropInstantly() {
+    while (!collision()) {
+        currentPiece.y++;
+    }
+    currentPiece.y--; // 衝突する直前に戻す
+    placePiece();
+    currentPiece = getRandomPiece();
+    if (collision()) {
+        gameOver = true;
+        document.getElementById('gameOver').classList.remove('hidden');
+    }
+}
+
+// ボタンにイベントリスナーを追加
+leftButton.addEventListener('click', moveLeft);
+rightButton.addEventListener('click', moveRight);
+rotateButton.addEventListener('click', rotatePiece);
+dropButton.addEventListener('click', dropInstantly);
