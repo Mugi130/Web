@@ -1,52 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <link rel="stylesheet" href="style.css">
-  <title>CALCULATOR</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オンラインテトリス</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <form name="calculator">
-    <table>
-      <!---液晶画面--->
-      <tr>
-        <td colspan="4">
-          <input type="text" class="display" name="display" value="" disabled>
-        </td>
-      </tr>
-
-      <!---上から１段目（7〜9+÷)--->
-      <tr>
-        <td><input type="button" value="7" onclick="get_calc(this)"></td>
-        <td><input type="button" value="8" onclick="get_calc(this)"></td>
-        <td><input type="button" value="9" onclick="get_calc(this)"></td>
-        <td><input type="button" value="÷" class="operator" name="div_btn" onclick="get_calc(this)"></td>
-      </tr>
-
-      <!---上から２段目(4〜６+×)--->
-      <tr>
-        <td><input type="button" value="4" onclick="get_calc(this)"></td>
-        <td><input type="button" value="5" onclick="get_calc(this)"></td>
-        <td><input type="button" value="6" onclick="get_calc(this)"></td>
-        <td><input type="button" value="×" class="operator" name="multi_btn" onclick="get_calc(this)"></td>
-      </tr>
-
-      <!---上から３段目(1〜3+-)--->
-      <tr>
-        <td><input type="button" value="1" onclick="get_calc(this)"></td>
-        <td><input type="button" value="2" onclick="get_calc(this)"></td>
-        <td><input type="button" value="3" onclick="get_calc(this)"></td>
-        <td><input type="button" value="-" class="operator" onclick="get_calc(this)"></td>
-      </tr>
-
-      <!---上から4段目(0/C/=/+)--->
-      <tr>
-        <td><input type="button" value="0" onclick="get_calc(this)"></td>
-        <td><input type="button" value="C" onclick="get_calc(this)"></td>
-        <td><input type="button" value="=" class="equal" onclick="get_calc(this)"></td>
-        <td><input type="button" value="+" class="operator" onclick="get_calc(this)"></td>
-      </tr>
-    </table>
-    <script src="script.js"></script>
-  </form>
+    <h1>テトリス</h1>
+    <div id="score">スコア: 0</div>
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <div id="gameOver" class="hidden">ゲームオーバー</div>
+    <script src="app.js"></script>
 </body>
 </html>
