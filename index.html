@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéAPI 日本語版v2 詳細表示</title>
+  <title>PokéAPI ポケモン図鑑　詳細表示</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -56,10 +56,16 @@
     }
     canvas {
       margin-top: 20px;
+      max-width: 300px;
+      max-height: 300px;
     }
-    .detail-section {
-      margin-top: 20px;
+    .stat-values {
       text-align: left;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    .stat-values p {
+      margin: 5px 0;
     }
   </style>
 </head>
@@ -71,7 +77,8 @@
 
   <div id="pokemon-list"></div>
   <div id="pokemon-detail" style="display: none;">
-    <canvas id="stats-chart" width="400" height="400"></canvas>
+    <canvas id="stats-chart"></canvas>
+    <div id="stat-values" class="stat-values"></div>
     <div id="additional-info" class="detail-section"></div>
   </div>
 
@@ -174,16 +181,23 @@
           (type) => typeTranslations[type.type.name] || type.type.name
         );
 
+        // 種族値の順序を固定
+        const statOrder = ["hp", "attack", "defense", "special-attack", "special-defense", "speed"];
+        const orderedStats = statOrder.map((key) => {
+          const stat = stats.find((s) => s.name === key);
+          return { name: key.toUpperCase(), value: stat.value };
+        });
+
         // 種族値のグラフを描画
         const ctx = document.getElementById("stats-chart").getContext("2d");
         new Chart(ctx, {
           type: "radar",
           data: {
-            labels: stats.map((stat) => stat.name.toUpperCase()),
+            labels: orderedStats.map((stat) => stat.name),
             datasets: [
               {
                 label: "種族値",
-                data: stats.map((stat) => stat.value),
+                data: orderedStats.map((stat) => stat.value),
                 backgroundColor: "rgba(255, 69, 0, 0.5)",
                 borderColor: "rgba(255, 69, 0, 1)",
                 borderWidth: 2,
@@ -198,6 +212,12 @@
             },
           },
         });
+
+        // 種族値を数値で表示
+        const statValuesDiv = document.getElementById("stat-values");
+        statValuesDiv.innerHTML = orderedStats
+          .map((stat) => `<p><strong>${stat.name}:</strong> ${stat.value}</p>`)
+          .join("");
 
         // 追加情報を表示
         detailDiv.style.display = "block";
