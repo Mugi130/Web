@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéAPI 日本語版デモ</title>
+  <title>PokéAPI 日本語版 詳細表示</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
     h1 {
       color: #FF4500;
     }
-    #pokemon-info {
+    #pokemon-list, #pokemon-detail {
       margin-top: 20px;
     }
     .pokemon-card {
@@ -23,8 +23,12 @@
       margin: 10px;
       border-radius: 10px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      text-align: left;
-      width: 300px;
+      text-align: center;
+      width: 150px;
+      cursor: pointer;
+    }
+    .pokemon-card:hover {
+      background-color: #f9f9f9;
     }
     img {
       display: block;
@@ -52,78 +56,132 @@
   </style>
 </head>
 <body>
-  <h1>PokéAPI 日本語版</h1>
-  <p>ポケモン名またはIDを入力して詳細を表示！</p>
-  <input type="text" id="pokemon-name" placeholder="例: pikachu または 25" />
-  <button onclick="getPokemon()">検索</button>
+  <h1>PokéAPI 日本語検索対応</h1>
+  <p>ポケモン名を日本語で検索して、詳細を表示！</p>
+  <input type="text" id="search-box" placeholder="例: ピカチュウ" />
+  <button onclick="searchPokemon()">検索</button>
 
-  <div id="pokemon-info"></div>
+  <div id="pokemon-list"></div>
+  <div id="pokemon-detail" style="display: none;"></div>
 
   <script>
-    async function getPokemon() {
-      const name = document.getElementById('pokemon-name').value.toLowerCase().trim();
-      const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${name}`;
-      const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${name}`;
-      const infoDiv = document.getElementById('pokemon-info');
-      
-      infoDiv.innerHTML = '検索中...';
+    // 日本語名リストを取得（初期ロード時）
+    let pokemonNames = [];
+
+    async function loadJapaneseNames() {
+      const url = "https://pokeapi.co/api/v2/pokemon-species?limit=1000";
+      const response = await fetch(url);
+      const data = await response.json();
+
+      // 日本語名リストを作成
+      pokemonNames = await Promise.all(
+        data.results.map(async (pokemon) => {
+          const speciesResponse = await fetch(pokemon.url);
+          const speciesData = await speciesResponse.json();
+          const japaneseName = speciesData.names.find(
+            (name) => name.language.name === "ja"
+          ).name;
+          return { id: speciesData.id, name: japaneseName, url: speciesData.url };
+        })
+      );
+    }
+
+    // ポケモン検索
+    async function searchPokemon() {
+      const query = document.getElementById("search-box").value.trim();
+      const listDiv = document.getElementById("pokemon-list");
+      const detailDiv = document.getElementById("pokemon-detail");
+      listDiv.innerHTML = "検索中...";
+      detailDiv.style.display = "none";
+
+      const filtered = pokemonNames.filter((pokemon) =>
+        pokemon.name.includes(query)
+      );
+
+      if (filtered.length === 0) {
+        listDiv.innerHTML = `<p style="color: red;">該当するポケモンが見つかりませんでした。</p>`;
+        return;
+      }
+
+      // 検索結果を表示
+      listDiv.innerHTML = filtered
+        .map(
+          (pokemon) => `
+        <div class="pokemon-card" onclick="showDetails(${pokemon.id})">
+          <p>${pokemon.name}</p>
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png" alt="${pokemon.name}">
+        </div>
+      `
+        )
+        .join("");
+    }
+
+    // 詳細情報表示
+    async function showDetails(id) {
+      const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
+      const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
+      const detailDiv = document.getElementById("pokemon-detail");
 
       try {
-        // ポケモン基本データを取得
-        const pokemonResponse = await fetch(pokemonUrl);
-        if (!pokemonResponse.ok) throw new Error('ポケモンが見つかりませんでした！');
-        const pokemonData = await pokemonResponse.json();
+        const [pokemonResponse, speciesResponse] = await Promise.all([
+          fetch(pokemonUrl),
+          fetch(speciesUrl),
+        ]);
+        if (!pokemonResponse.ok || !speciesResponse.ok) {
+          throw new Error("詳細データが取得できませんでした。");
+        }
 
-        // ポケモン種別データを取得（日本語名・説明文）
-        const speciesResponse = await fetch(speciesUrl);
-        if (!speciesResponse.ok) throw new Error('ポケモン種別データが見つかりません！');
+        const pokemonData = await pokemonResponse.json();
         const speciesData = await speciesResponse.json();
 
-        // 日本語名の取得
-        const japaneseName = speciesData.names.find(n => n.language.name === 'ja').name;
-
-        // 日本語フレーバーテキストの取得
+        const japaneseName = speciesData.names.find(
+          (n) => n.language.name === "ja"
+        ).name;
         const flavorText = speciesData.flavor_text_entries
-          .find(entry => entry.language.name === 'ja').flavor_text.replace(/[\n\f]/g, ' ');
-
-        // 日本語タイプの取得
+          .find((entry) => entry.language.name === "ja")
+          .flavor_text.replace(/[\n\f]/g, " ");
         const typeTranslations = {
-          fire: 'ほのお',
-          water: 'みず',
-          grass: 'くさ',
-          electric: 'でんき',
-          bug: 'むし',
-          normal: 'ノーマル',
-          poison: 'どく',
-          ground: 'じめん',
-          flying: 'ひこう',
-          psychic: 'エスパー',
-          rock: 'いわ',
-          ice: 'こおり',
-          dragon: 'ドラゴン',
-          dark: 'あく',
-          steel: 'はがね',
-          fairy: 'フェアリー',
-          fighting: 'かくとう',
-          ghost: 'ゴースト'
+          fire: "ほのお",
+          water: "みず",
+          grass: "くさ",
+          electric: "でんき",
+          bug: "むし",
+          normal: "ノーマル",
+          poison: "どく",
+          ground: "じめん",
+          flying: "ひこう",
+          psychic: "エスパー",
+          rock: "いわ",
+          ice: "こおり",
+          dragon: "ドラゴン",
+          dark: "あく",
+          steel: "はがね",
+          fairy: "フェアリー",
+          fighting: "かくとう",
+          ghost: "ゴースト",
         };
-        const japaneseTypes = pokemonData.types.map(type => typeTranslations[type.type.name] || type.type.name);
+        const japaneseTypes = pokemonData.types.map(
+          (type) => typeTranslations[type.type.name] || type.type.name
+        );
 
-        // 結果をHTMLに挿入
-        infoDiv.innerHTML = `
-          <div class="pokemon-card">
+        detailDiv.style.display = "block";
+        detailDiv.innerHTML = `
+          <div class="pokemon-card" style="width: auto;">
             <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
             <img src="${pokemonData.sprites.front_default}" alt="${japaneseName}">
-            <p><strong>タイプ:</strong> ${japaneseTypes.join(', ')}</p>
+            <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
             <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
             <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
             <p><strong>説明:</strong> ${flavorText}</p>
           </div>
         `;
       } catch (error) {
-        infoDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
+        detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
       }
     }
+
+    // 初期化
+    loadJapaneseNames();
   </script>
 </body>
 </html>
