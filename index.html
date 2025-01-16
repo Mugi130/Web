@@ -1,22 +1,129 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>オンラインテトリス</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PokéAPI 日本語版デモ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    h1 {
+      color: #FF4500;
+    }
+    #pokemon-info {
+      margin-top: 20px;
+    }
+    .pokemon-card {
+      display: inline-block;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: left;
+      width: 300px;
+    }
+    img {
+      display: block;
+      margin: 0 auto 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      background-color: #FF4500;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #E03E00;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
 </head>
 <body>
-    <h1>テトリス</h1>
-    <div id="score">スコア: 0</div>
-    <canvas id="gameCanvas" width="300" height="600"></canvas>
-    <div id="gameOver" class="hidden">ゲームオーバー</div>
-    <script src="app.js"></script>
+  <h1>PokéAPI 日本語版</h1>
+  <p>ポケモン名またはIDを入力して詳細を表示！</p>
+  <input type="text" id="pokemon-name" placeholder="例: pikachu または 25" />
+  <button onclick="getPokemon()">検索</button>
+
+  <div id="pokemon-info"></div>
+
+  <script>
+    async function getPokemon() {
+      const name = document.getElementById('pokemon-name').value.toLowerCase().trim();
+      const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${name}`;
+      const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${name}`;
+      const infoDiv = document.getElementById('pokemon-info');
+      
+      infoDiv.innerHTML = '検索中...';
+
+      try {
+        // ポケモン基本データを取得
+        const pokemonResponse = await fetch(pokemonUrl);
+        if (!pokemonResponse.ok) throw new Error('ポケモンが見つかりませんでした！');
+        const pokemonData = await pokemonResponse.json();
+
+        // ポケモン種別データを取得（日本語名・説明文）
+        const speciesResponse = await fetch(speciesUrl);
+        if (!speciesResponse.ok) throw new Error('ポケモン種別データが見つかりません！');
+        const speciesData = await speciesResponse.json();
+
+        // 日本語名の取得
+        const japaneseName = speciesData.names.find(n => n.language.name === 'ja').name;
+
+        // 日本語フレーバーテキストの取得
+        const flavorText = speciesData.flavor_text_entries
+          .find(entry => entry.language.name === 'ja').flavor_text.replace(/[\n\f]/g, ' ');
+
+        // 日本語タイプの取得
+        const typeTranslations = {
+          fire: 'ほのお',
+          water: 'みず',
+          grass: 'くさ',
+          electric: 'でんき',
+          bug: 'むし',
+          normal: 'ノーマル',
+          poison: 'どく',
+          ground: 'じめん',
+          flying: 'ひこう',
+          psychic: 'エスパー',
+          rock: 'いわ',
+          ice: 'こおり',
+          dragon: 'ドラゴン',
+          dark: 'あく',
+          steel: 'はがね',
+          fairy: 'フェアリー',
+          fighting: 'かくとう',
+          ghost: 'ゴースト'
+        };
+        const japaneseTypes = pokemonData.types.map(type => typeTranslations[type.type.name] || type.type.name);
+
+        // 結果をHTMLに挿入
+        infoDiv.innerHTML = `
+          <div class="pokemon-card">
+            <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
+            <img src="${pokemonData.sprites.front_default}" alt="${japaneseName}">
+            <p><strong>タイプ:</strong> ${japaneseTypes.join(', ')}</p>
+            <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
+            <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
+            <p><strong>説明:</strong> ${flavorText}</p>
+          </div>
+        `;
+      } catch (error) {
+        infoDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
+      }
+    }
+  </script>
 </body>
 </html>
-<div id="controls">
-    <button id="left">◀️ 左</button>
-    <button id="rotate">🔄 回転</button>
-    <button id="right">▶️ 右</button>
-    <button id="drop">⬇️ 即時落下</button>
-</div>
