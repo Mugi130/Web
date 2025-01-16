@@ -113,16 +113,17 @@
         return;
       }
 
-      listDiv.innerHTML = filtered
-        .map(
-          (pokemon) => `
-        <div class="pokemon-card" onclick="showDetails(${pokemon.id})">
+      listDiv.innerHTML = "";
+      filtered.forEach((pokemon) => {
+        const card = document.createElement("div");
+        card.className = "pokemon-card";
+        card.innerHTML = `
           <p>${pokemon.name}</p>
           <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png" alt="${pokemon.name}">
-        </div>
-      `
-        )
-        .join("");
+        `;
+        card.addEventListener("click", () => showDetails(pokemon.id));
+        listDiv.appendChild(card);
+      });
     }
 
     // 詳細情報の表示
