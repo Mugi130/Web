@@ -77,6 +77,10 @@
 
   <div id="pokemon-list"></div>
   <div id="pokemon-detail" style="display: none;">
+    <div id="type-compatibility" class="type-info">
+  <h3>タイプ相性</h3>
+</div>
+
     <canvas id="stats-chart"></canvas>
     <div id="stat-values" class="stat-values"></div>
     <div id="additional-info" class="detail-section"></div>
@@ -103,7 +107,43 @@
       );
     }
 
-    // ポケモン検索
+// ポケモンのタイプ相性を表示
+async function showTypeCompatibility(types) {
+  const typeUrls = types.map((type) => type.type.url);
+  const typeData = await Promise.all(typeUrls.map((url) => fetch(url).then((res) => res.json())));
+
+  const damageRelations = {
+    doubleDamageFrom: new Set(),
+    halfDamageFrom: new Set(),
+    noDamageFrom: new Set(),
+  };
+
+  // 各タイプの相性データを統合
+  typeData.forEach((typeInfo) => {
+    typeInfo.damage_relations.double_damage_from.forEach((type) => damageRelations.doubleDamageFrom.add(type.name));
+    typeInfo.damage_relations.half_damage_from.forEach((type) => damageRelations.halfDamageFrom.add(type.name));
+    typeInfo.damage_relations.no_damage_from.forEach((type) => damageRelations.noDamageFrom.add(type.name));
+  });
+
+  // 重複するタイプを整理（例: 弱点と耐性の両方を持つ場合を考慮）
+  const weaknesses = [...damageRelations.doubleDamageFrom].filter(
+    (type) => !damageRelations.halfDamageFrom.has(type) && !damageRelations.noDamageFrom.has(type)
+  );
+  const resistances = [...damageRelations.halfDamageFrom].filter(
+    (type) => !damageRelations.noDamageFrom.has(type)
+  );
+  const immunities = [...damageRelations.noDamageFrom];
+
+  // 相性情報を表示
+  const compatibilityDiv = document.getElementById("type-compatibility");
+  compatibilityDiv.innerHTML = `
+    <h3>タイプ相性</h3>
+    <p><strong>弱点:</strong> ${weaknesses.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+    <p><strong>耐性:</strong> ${resistances.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+    <p><strong>無効:</strong> ${immunities.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+  `;
+}
+// ポケモン検索
     function searchPokemon() {
       const query = document.getElementById("search-box").value.trim();
       const listDiv = document.getElementById("pokemon-list");
@@ -133,108 +173,117 @@
       });
     }
 
-    // 詳細情報の表示
-    async function showDetails(id) {
-      const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
-      const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
-      const detailDiv = document.getElementById("pokemon-detail");
+ // 詳細情報の表示　コピペ
+ async function showDetails(id) {
+  const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
+  const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
+  const detailDiv = document.getElementById("pokemon-detail");
 
-      try {
-        const [pokemonResponse, speciesResponse] = await Promise.all([
-          fetch(pokemonUrl),
-          fetch(speciesUrl),
-        ]);
-        const pokemonData = await pokemonResponse.json();
-        const speciesData = await speciesResponse.json();
+  try {
+    const [pokemonResponse, speciesResponse] = await Promise.all([
+      fetch(pokemonUrl),
+      fetch(speciesUrl),
+    ]);
+    const pokemonData = await pokemonResponse.json();
+    const speciesData = await speciesResponse.json();
 
-        const japaneseName = speciesData.names.find(
-          (n) => n.language.name === "ja"
-        ).name;
-        const flavorText = speciesData.flavor_text_entries
-          .find((entry) => entry.language.name === "ja")
-          .flavor_text.replace(/[\n\f]/g, " ");
-        const stats = pokemonData.stats.map((stat) => ({
-          name: stat.stat.name,
-          value: stat.base_stat,
-        }));
-        const typeTranslations = {
-          fire: "ほのお",
-          water: "みず",
-          grass: "くさ",
-          electric: "でんき",
-          bug: "むし",
-          normal: "ノーマル",
-          poison: "どく",
-          ground: "じめん",
-          flying: "ひこう",
-          psychic: "エスパー",
-          rock: "いわ",
-          ice: "こおり",
-          dragon: "ドラゴン",
-          dark: "あく",
-          steel: "はがね",
-          fairy: "フェアリー",
-          fighting: "かくとう",
-          ghost: "ゴースト",
-        };
-        const japaneseTypes = pokemonData.types.map(
-          (type) => typeTranslations[type.type.name] || type.type.name
-        );
+    const japaneseName = speciesData.names.find(
+      (n) => n.language.name === "ja"
+    ).name;
+    const flavorText = speciesData.flavor_text_entries
+      .find((entry) => entry.language.name === "ja")
+      .flavor_text.replace(/[\n\f]/g, " ");
+    const stats = pokemonData.stats.map((stat) => ({
+      name: stat.stat.name,
+      value: stat.base_stat,
+    }));
+    const typeTranslations = {
+      fire: "ほのお",
+      water: "みず",
+      grass: "くさ",
+      electric: "でんき",
+      bug: "むし",
+      normal: "ノーマル",
+      poison: "どく",
+      ground: "じめん",
+      flying: "ひこう",
+      psychic: "エスパー",
+      rock: "いわ",
+      ice: "こおり",
+      dragon: "ドラゴン",
+      dark: "あく",
+      steel: "はがね",
+      fairy: "フェアリー",
+      fighting: "かくとう",
+      ghost: "ゴースト",
+    };
+    const japaneseTypes = pokemonData.types.map(
+      (type) => typeTranslations[type.type.name] || type.type.name
+    );
 
-        // 種族値の順序を固定
-        const statOrder = [
-          { key: "hp", label: "HP" },
-          { key: "attack", label: "攻撃" },
-          { key: "defense", label: "防御" },
-          { key: "speed", label: "素早さ" },
-          { key: "special-defense", label: "特防" },
-          { key: "special-attack", label: "とくこう" },
-        ];
-        const orderedStats = statOrder.map(({ key, label }) => {
-          const stat = stats.find((s) => s.name === key);
-          return { name: label, value: stat.value };
-        });
+    // 種族値の順序を固定
+    const statOrder = [
+      { key: "hp", label: "HP" },
+      { key: "attack", label: "攻撃" },
+      { key: "defense", label: "防御" },
+      { key: "speed", label: "素早さ" },
+      { key: "special-defense", label: "特防" },
+      { key: "special-attack", label: "とくこう" },
+    ];
+    const orderedStats = statOrder.map(({ key, label }) => {
+      const stat = stats.find((s) => s.name === key);
+      return { name: label, value: stat.value };
+    });
 
-        // 種族値のグラフを描画
-        const ctx = document.getElementById("stats-chart").getContext("2d");
-        new Chart(ctx, {
-          type: "radar",
-          data: {
-            labels: orderedStats.map((stat) => stat.name),
-            datasets: [
-              {
-                label: "種族値",
-                data: orderedStats.map((stat) => stat.value),
-                backgroundColor: "rgba(255, 69, 0, 0.5)",
-                borderColor: "rgba(255, 69, 0, 1)",
-                borderWidth: 2,
-              },
-            ],
+    // 種族値のグラフを描画
+    const ctx = document.getElementById("stats-chart").getContext("2d");
+    new Chart(ctx, {
+      type: "radar",
+      data: {
+        labels: orderedStats.map((stat) => stat.name),
+        datasets: [
+          {
+            label: "種族値",
+            data: orderedStats.map((stat) => stat.value),
+            backgroundColor: "rgba(255, 69, 0, 0.5)",
+            borderColor: "rgba(255, 69, 0, 1)",
+            borderWidth: 2,
           },
-          options: {
-            scales: {
-              r: {
-                beginAtZero: true,
-              },
-            },
+        ],
+      },
+      options: {
+        scales: {
+          r: {
+            beginAtZero: true,
           },
-        });
+        },
+      },
+    });
 
-        // 種族値を数値で表示
-        const statValuesDiv = document.getElementById("stat-values");
-        statValuesDiv.innerHTML = orderedStats
-          .map((stat) => `<p><strong>${stat.name}:</strong> ${stat.value}</p>`)
-          .join("");
+    // 種族値を数値で表示
+    const statValuesDiv = document.getElementById("stat-values");
+    statValuesDiv.innerHTML = orderedStats
+      .map((stat) => `<p><strong>${stat.name}:</strong> ${stat.value}</p>`)
+      .join("");
 
-        // 追加情報を表示
-        detailDiv.style.display = "block";
-        document.getElementById("additional-info").innerHTML = `
-          <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
-          <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
-          <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
-          <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
-          <p><strong>説明:</strong> ${flavorText}</p>
-        `;
+    // 追加情報を表示
+    detailDiv.style.display = "block";
+    document.getElementById("additional-info").innerHTML = `
+      <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
+      <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
+      <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
+      <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
+      <p><strong>説明:</strong> ${flavorText}</p>
+    `;
+
+    // タイプ相性を表示
+    await showTypeCompatibility(pokemonData.types);
+  } catch (error) {
+    detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
+  }
+}
+ 
+//ここまで
       } catch (error) {
         detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
       }
