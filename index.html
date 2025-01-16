@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PokéAPI 日本語版 詳細表示</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -54,13 +53,6 @@
       border: 1px solid #ccc;
       border-radius: 5px;
     }
-    canvas {
-      margin-top: 20px;
-    }
-    .detail-section {
-      margin-top: 20px;
-      text-align: left;
-    }
   </style>
 </head>
 <body>
@@ -70,20 +62,18 @@
   <button onclick="searchPokemon()">検索</button>
 
   <div id="pokemon-list"></div>
-  <div id="pokemon-detail" style="display: none;">
-    <canvas id="stats-chart" width="400" height="400"></canvas>
-    <div id="additional-info" class="detail-section"></div>
-  </div>
+  <div id="pokemon-detail" style="display: none;"></div>
 
   <script>
+    // 日本語名リストを取得（初期ロード時）
     let pokemonNames = [];
 
-    // 日本語名リストをロード
     async function loadJapaneseNames() {
       const url = "https://pokeapi.co/api/v2/pokemon-species?limit=1000";
       const response = await fetch(url);
       const data = await response.json();
 
+      // 日本語名リストを作成
       pokemonNames = await Promise.all(
         data.results.map(async (pokemon) => {
           const speciesResponse = await fetch(pokemon.url);
@@ -97,7 +87,7 @@
     }
 
     // ポケモン検索
-    function searchPokemon() {
+    async function searchPokemon() {
       const query = document.getElementById("search-box").value.trim();
       const listDiv = document.getElementById("pokemon-list");
       const detailDiv = document.getElementById("pokemon-detail");
@@ -113,20 +103,20 @@
         return;
       }
 
-      listDiv.innerHTML = "";
-      filtered.forEach((pokemon) => {
-        const card = document.createElement("div");
-        card.className = "pokemon-card";
-        card.innerHTML = `
+      // 検索結果を表示
+      listDiv.innerHTML = filtered
+        .map(
+          (pokemon) => `
+        <div class="pokemon-card" onclick="showDetails(${pokemon.id})">
           <p>${pokemon.name}</p>
           <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png" alt="${pokemon.name}">
-        `;
-        card.addEventListener("click", () => showDetails(pokemon.id));
-        listDiv.appendChild(card);
-      });
+        </div>
+      `
+        )
+        .join("");
     }
 
-    // 詳細情報の表示
+    // 詳細情報表示
     async function showDetails(id) {
       const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
       const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
@@ -137,6 +127,10 @@
           fetch(pokemonUrl),
           fetch(speciesUrl),
         ]);
+        if (!pokemonResponse.ok || !speciesResponse.ok) {
+          throw new Error("詳細データが取得できませんでした。");
+        }
+
         const pokemonData = await pokemonResponse.json();
         const speciesData = await speciesResponse.json();
 
@@ -146,10 +140,6 @@
         const flavorText = speciesData.flavor_text_entries
           .find((entry) => entry.language.name === "ja")
           .flavor_text.replace(/[\n\f]/g, " ");
-        const stats = pokemonData.stats.map((stat) => ({
-          name: stat.stat.name,
-          value: stat.base_stat,
-        }));
         const typeTranslations = {
           fire: "ほのお",
           water: "みず",
@@ -174,39 +164,16 @@
           (type) => typeTranslations[type.type.name] || type.type.name
         );
 
-        // 種族値のグラフを描画
-        const ctx = document.getElementById("stats-chart").getContext("2d");
-        new Chart(ctx, {
-          type: "radar",
-          data: {
-            labels: stats.map((stat) => stat.name.toUpperCase()),
-            datasets: [
-              {
-                label: "種族値",
-                data: stats.map((stat) => stat.value),
-                backgroundColor: "rgba(255, 69, 0, 0.5)",
-                borderColor: "rgba(255, 69, 0, 1)",
-                borderWidth: 2,
-              },
-            ],
-          },
-          options: {
-            scales: {
-              r: {
-                beginAtZero: true,
-              },
-            },
-          },
-        });
-
-        // 追加情報を表示
         detailDiv.style.display = "block";
-        document.getElementById("additional-info").innerHTML = `
-          <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
-          <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
-          <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
-          <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
-          <p><strong>説明:</strong> ${flavorText}</p>
+        detailDiv.innerHTML = `
+          <div class="pokemon-card" style="width: auto;">
+            <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
+            <img src="${pokemonData.sprites.front_default}" alt="${japaneseName}">
+            <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
+            <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
+            <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
+            <p><strong>説明:</strong> ${flavorText}</p>
+          </div>
         `;
       } catch (error) {
         detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
