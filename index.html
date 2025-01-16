@@ -3,21 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéAPI ポケモン図鑑　詳細表示</title>
+  <title>PokéAPI 日本語版 詳細表示</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       margin: 20px;
+      background-color: var(--bg-color, #fff);
+      color: var(--text-color, #000);
     }
     h1 {
       color: #FF4500;
     }
-    #pokemon-list, #pokemon-detail {
+    .dark-mode {
+      --bg-color: #1a1a1a;
+      --text-color: #f0f0f0;
+    }
+    #pokemon-list, #pokemon-detail, #history, #favorites {
       margin-top: 20px;
     }
-    .pokemon-card {
+    .pokemon-card, .evolution-card {
       display: inline-block;
       border: 1px solid #ddd;
       padding: 10px;
@@ -28,7 +34,7 @@
       width: 150px;
       cursor: pointer;
     }
-    .pokemon-card:hover {
+    .pokemon-card:hover, .evolution-card:hover {
       background-color: #f9f9f9;
     }
     img {
@@ -67,11 +73,22 @@
     .stat-values p {
       margin: 5px 0;
     }
+    .type-info {
+      text-align: left;
+      margin-top: 20px;
+    }
+    .type-info p {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
   <h1>PokéAPI 日本語検索対応</h1>
-  <p>ポケモン名を日本語で検索して、詳細を表示！</p>
+  <p>ポケモン名を検索して詳細を表示！</p>
+  <label>
+    <input type="checkbox" id="dark-mode-toggle" onclick="toggleDarkMode()"> ダークモード
+  </label>
+  <br><br>
   <input type="text" id="search-box" placeholder="例: ピカチュウ" />
   <button onclick="searchPokemon()">検索</button>
 
@@ -80,10 +97,28 @@
     <canvas id="stats-chart"></canvas>
     <div id="stat-values" class="stat-values"></div>
     <div id="additional-info" class="detail-section"></div>
+    <div id="evolution-chain" class="detail-section">
+      <h3>進化チェーン</h3>
+      <div id="evolution-cards"></div>
+    </div>
+    <div id="type-compatibility" class="type-info">
+      <h3>タイプ相性</h3>
+      <div id="weakness"></div>
+      <div id="resistance"></div>
+      <div id="immunity"></div>
+    </div>
+    <button onclick="addToFavorites()">お気に入りに追加</button>
   </div>
 
   <script>
     let pokemonNames = [];
+    let favorites = [];
+    let searchHistory = [];
+
+    // ダークモードの切り替え
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
 
     // 日本語名リストをロード
     async function loadJapaneseNames() {
@@ -131,106 +166,50 @@
         card.addEventListener("click", () => showDetails(pokemon.id));
         listDiv.appendChild(card);
       });
+
+      addSearchHistory(query);
     }
 
-    // 詳細情報の表示
-    async function showDetails(id) {
-      const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
-      const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
-      const detailDiv = document.getElementById("pokemon-detail");
-
-      try {
-        const [pokemonResponse, speciesResponse] = await Promise.all([
-          fetch(pokemonUrl),
-          fetch(speciesUrl),
-        ]);
-        const pokemonData = await pokemonResponse.json();
-        const speciesData = await speciesResponse.json();
-
-        const japaneseName = speciesData.names.find(
-          (n) => n.language.name === "ja"
-        ).name;
-        const flavorText = speciesData.flavor_text_entries
-          .find((entry) => entry.language.name === "ja")
-          .flavor_text.replace(/[\n\f]/g, " ");
-        const stats = pokemonData.stats.map((stat) => ({
-          name: stat.stat.name,
-          value: stat.base_stat,
-        }));
-        const typeTranslations = {
-          fire: "ほのお",
-          water: "みず",
-          grass: "くさ",
-          electric: "でんき",
-          bug: "むし",
-          normal: "ノーマル",
-          poison: "どく",
-          ground: "じめん",
-          flying: "ひこう",
-          psychic: "エスパー",
-          rock: "いわ",
-          ice: "こおり",
-          dragon: "ドラゴン",
-          dark: "あく",
-          steel: "はがね",
-          fairy: "フェアリー",
-          fighting: "かくとう",
-          ghost: "ゴースト",
-        };
-        const japaneseTypes = pokemonData.types.map(
-          (type) => typeTranslations[type.type.name] || type.type.name
-        );
-
-        // 種族値の順序を固定
-        const statOrder = ["hp", "attack", "defense", "special-attack", "special-defense", "speed"];
-        const orderedStats = statOrder.map((key) => {
-          const stat = stats.find((s) => s.name === key);
-          return { name: key.toUpperCase(), value: stat.value };
-        });
-
-        // 種族値のグラフを描画
-        const ctx = document.getElementById("stats-chart").getContext("2d");
-        new Chart(ctx, {
-          type: "radar",
-          data: {
-            labels: orderedStats.map((stat) => stat.name),
-            datasets: [
-              {
-                label: "種族値",
-                data: orderedStats.map((stat) => stat.value),
-                backgroundColor: "rgba(255, 69, 0, 0.5)",
-                borderColor: "rgba(255, 69, 0, 1)",
-                borderWidth: 2,
-              },
-            ],
-          },
-          options: {
-            scales: {
-              r: {
-                beginAtZero: true,
-              },
-            },
-          },
-        });
-
-        // 種族値を数値で表示
-        const statValuesDiv = document.getElementById("stat-values");
-        statValuesDiv.innerHTML = orderedStats
-          .map((stat) => `<p><strong>${stat.name}:</strong> ${stat.value}</p>`)
-          .join("");
-
-        // 追加情報を表示
-        detailDiv.style.display = "block";
-        document.getElementById("additional-info").innerHTML = `
-          <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
-          <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
-          <p><strong>高さ:</strong> ${pokemonData.height / 10} m</p>
-          <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
-          <p><strong>説明:</strong> ${flavorText}</p>
-        `;
-      } catch (error) {
-        detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
+    // 検索履歴を保存
+    function addSearchHistory(query) {
+      if (!searchHistory.includes(query)) {
+        searchHistory.push(query);
+        const historyDiv = document.getElementById("history");
+        const entry = document.createElement("p");
+        entry.textContent = query;
+        historyDiv.appendChild(entry);
       }
+    }
+
+    // 進化チェーンを表示
+    async function loadEvolutionChain(evolutionUrl) {
+      const response = await fetch(evolutionUrl);
+      const data = await response.json();
+      const chainDiv = document.getElementById("evolution-cards");
+      chainDiv.innerHTML = "";
+
+      function displayChain(chain) {
+        if (!chain) return;
+        const card = document.createElement("div");
+        card.className = "evolution-card";
+        card.innerHTML = `
+          <p>${chain.species.name}</p>
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${getPokemonIdFromUrl(
+            chain.species.url
+          )}.png" alt="${chain.species.name}">
+        `;
+        chainDiv.appendChild(card);
+        if (chain.evolves_to.length > 0) {
+          displayChain(chain.evolves_to[0]);
+        }
+      }
+
+      displayChain(data.chain);
+    }
+
+    function getPokemonIdFromUrl(url) {
+      const match = url.match(/\/pokemon-species\/(\d+)\//);
+      return match ? match[1] : null;
     }
 
     // 初期化
