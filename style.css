@@ -1,55 +1,96 @@
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background-color: #202020;
-    color: #fff;
-    margin: 0;
-    padding: 0;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  background-color: #f9f9f9;
+  color: #333;
 }
 
-h1 {
-    margin: 20px 0;
+header {
+  background-color: #ff4500;
+  color: white;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-#score {
-    margin-bottom: 10px;
-    font-size: 1.2em;
+header h1 {
+  margin: 0;
 }
 
-canvas {
-    border: 2px solid #fff;
-    background-color: #000;
-    display: block;
-    margin: 0 auto;
+header input {
+  padding: 10px;
+  font-size: 16px;
+  width: 200px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-right: 10px;
 }
 
-#gameOver {
-    color: red;
-    font-size: 2em;
-    margin-top: 20px;
+header button {
+  padding: 10px 15px;
+  font-size: 16px;
+  background-color: white;
+  color: #ff4500;
+  border: 1px solid #ff4500;
+  border-radius: 5px;
+  cursor: pointer;
 }
 
-.hidden {
-    display: none;
-}
-#controls {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
+header button:hover {
+  background-color: #e03e00;
+  color: white;
 }
 
-#controls button {
-    background-color: #444;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1.2em;
-    margin: 5px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+#pokemon-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
 }
 
-#controls button:active {
-    background-color: #666;
+.pokemon-card {
+  display: inline-block;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  width: 150px;
+  cursor: pointer;
+  background-color: white;
+  transition: transform 0.2s ease;
+}
+
+.pokemon-card:hover {
+  background-color: #f1f1f1;
+  transform: scale(1.05);
+}
+
+#pokemon-detail {
+  background-color: white;
+  padding: 20px;
+  margin: 20px auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+}
+
+.stat-values, .type-info {
+  text-align: left;
+  margin-top: 20px;
+}
+
+.stat-values p, .type-info p {
+  margin: 5px 0;
+}
+
+footer {
+  background-color: #333;
+  color: white;
+  padding: 10px 0;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
 }
