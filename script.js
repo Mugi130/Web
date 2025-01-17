@@ -1,10 +1,12 @@
-let pokemonNames = [];
+let pokemonNames = []; // キャッシュ用
+const apiCache = {}; // APIレスポンスをキャッシュ
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadJapaneseNames();
+  loadPokemonData();
 });
 
-async function loadJapaneseNames() {
+// 全ポケモンデータをキャッシュ
+async function loadPokemonData() {
   const url = "https://pokeapi.co/api/v2/pokemon-species?limit=1000";
   const response = await fetch(url);
   const data = await response.json();
@@ -16,20 +18,40 @@ async function loadJapaneseNames() {
       const japaneseName = speciesData.names.find(
         (name) => name.language.name === "ja"
       ).name;
-      return { id: speciesData.id, name: japaneseName, url: speciesData.url };
+      return { 
+        id: speciesData.id, 
+        name: pokemon.name, 
+        japaneseName, 
+        url: pokemon.url 
+      };
     })
   );
+
+  console.log("全ポケモンデータがキャッシュされました:", pokemonNames);
 }
 
+// 検索機能（日本語・英語・ID対応）
 function searchPokemon() {
-  const query = document.getElementById("search-box").value.trim();
+  const query = document.getElementById("search-box").value.trim().toLowerCase();
   const listDiv = document.getElementById("pokemon-list");
   const detailDiv = document.getElementById("pokemon-detail");
   listDiv.innerHTML = "検索中...";
   detailDiv.style.display = "none";
 
-  const filtered = pokemonNames.filter((pokemon) =>
-    pokemon.name.includes(query)
+  // 数字の場合はIDで検索
+  if (!isNaN(query)) {
+    const id = parseInt(query, 10);
+    const pokemon = pokemonNames.find((p) => p.id === id);
+    if (pokemon) {
+      showDetails(pokemon.id);
+      return;
+    }
+  }
+
+  // 日本語または英語名で検索
+  const filtered = pokemonNames.filter(
+    (p) =>
+      p.japaneseName.includes(query) || p.name.toLowerCase().includes(query)
   );
 
   if (filtered.length === 0) {
@@ -37,24 +59,30 @@ function searchPokemon() {
     return;
   }
 
-  listDiv.innerHTML = "";
-  filtered.forEach((pokemon) => {
-    const card = document.createElement("div");
-    card.className = "pokemon-card";
-    card.innerHTML = `
-      <p>${pokemon.name}</p>
-      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png" alt="${pokemon.name}">
-    `;
-    card.addEventListener("click", () => showDetails(pokemon.id));
-    listDiv.appendChild(card);
-  });
+  listDiv.innerHTML = filtered
+    .map(
+      (pokemon) => `
+      <div class="pokemon-card" onclick="showDetails(${pokemon.id})">
+        <p>${pokemon.japaneseName} (${pokemon.name})</p>
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png" alt="${pokemon.name}">
+      </div>
+    `
+    )
+    .join("");
 }
 
+// 詳細情報表示
 async function showDetails(id) {
-  const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
-  const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
   const detailDiv = document.getElementById("pokemon-detail");
 
+  // キャッシュチェック
+  if (apiCache[id]) {
+    renderDetails(apiCache[id]);
+    return;
+  }
+
+  const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
+  const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${id}`;
   try {
     const [pokemonResponse, speciesResponse] = await Promise.all([
       fetch(pokemonUrl),
@@ -62,92 +90,55 @@ async function showDetails(id) {
     ]);
 
     if (!pokemonResponse.ok || !speciesResponse.ok) {
-      throw new Error("ポケモンの詳細を取得できませんでした。");
+      throw new Error("詳細データが取得できませんでした。");
     }
 
     const pokemonData = await pokemonResponse.json();
     const speciesData = await speciesResponse.json();
 
-    const japaneseName = speciesData.names.find(
-      (n) => n.language.name === "ja"
-    ).name;
-    const flavorText = speciesData.flavor_text_entries
-      .find((entry) => entry.language.name === "ja")
-      .flavor_text.replace(/[\n\f]/g, " ");
-    const stats = pokemonData.stats.map((stat) => ({
-      name: stat.stat.name,
-      value: stat.base_stat,
-    }));
-    const orderedStats = [
-      { key: "hp", label: "HP", value: stats.find((s) => s.name === "hp").value },
-      { key: "attack", label: "攻撃", value: stats.find((s) => s.name === "attack").value },
-      { key: "defense", label: "防御", value: stats.find((s) => s.name === "defense").value },
-      { key: "speed", label: "素早さ", value: stats.find((s) => s.name === "speed").value },
-      { key: "special-defense", label: "特防", value: stats.find((s) => s.name === "special-defense").value },
-      { key: "special-attack", label: "とくこう", value: stats.find((s) => s.name === "special-attack").value },
-    ];
-
-    const ctxElement = document.getElementById("stats-chart");
-    const ctx = ctxElement.getContext("2d");
-    new Chart(ctx, {
-      type: "radar",
-      data: {
-        labels: orderedStats.map((stat) => stat.label),
-        datasets: [
-          {
-            label: "種族値",
-            data: orderedStats.map((stat) => stat.value),
-            backgroundColor: "rgba(255, 69, 0, 0.5)",
-            borderColor: "rgba(255, 69, 0, 1)",
-            borderWidth: 2,
-          },
-        ],
-      },
-      options: {
-        scales: {
-          r: {
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-
-    const statValuesDiv = document.getElementById("stat-values");
-    statValuesDiv.innerHTML = orderedStats
-      .map((stat) => `<p><strong>${stat.label}:</strong> ${stat.value}</p>`)
-      .join("");
-
-    const typeTranslations = {
-      fire: "ほのお",
-      water: "みず",
-      grass: "くさ",
-      electric: "でんき",
-      bug: "むし",
-      normal: "ノーマル",
-      poison: "どく",
-      ground: "じめん",
-      flying: "ひこう",
-      psychic: "エスパー",
-      rock: "いわ",
-      ice: "こおり",
-      dragon: "ドラゴン",
-      dark: "あく",
-      steel: "はがね",
-      fairy: "フェアリー",
-      fighting: "かくとう",
-      ghost: "ゴースト",
-    };
-    const japaneseTypes = pokemonData.types.map(
-      (type) => typeTranslations[type.type.name] || type.type.name
-    );
-
-    detailDiv.style.display = "block";
-    document.getElementById("additional-info").innerHTML = `
-      <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
-      <p><strong>タイプ:</strong> ${japaneseTypes.join(", ")}</p>
-      <p><strong>説明:</strong> ${flavorText}</p>
-    `;
+    // キャッシュに保存
+    apiCache[id] = { pokemonData, speciesData };
+    renderDetails(apiCache[id]);
   } catch (error) {
     detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
   }
+}
+
+// 詳細情報のレンダリング
+function renderDetails({ pokemonData, speciesData }) {
+  const detailDiv = document.getElementById("pokemon-detail");
+  const japaneseName = speciesData.names.find(
+    (n) => n.language.name === "ja"
+  ).name;
+  const flavorText = speciesData.flavor_text_entries
+    .find((entry) => entry.language.name === "ja")
+    .flavor_text.replace(/[\n\f]/g, " ");
+  const stats = pokemonData.stats.map((stat) => ({
+    name: stat.stat.name,
+    value: stat.base_stat,
+  }));
+
+  // 種族値のグラフ
+  const ctx = document.getElementById("stats-chart").getContext("2d");
+  new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: stats.map((stat) => stat.name),
+      datasets: [
+        {
+          label: "種族値",
+          data: stats.map((stat) => stat.value),
+          backgroundColor: "rgba(255, 69, 0, 0.5)",
+          borderColor: "rgba(255, 69, 0, 1)",
+        },
+      ],
+    },
+  });
+
+  // 詳細情報を表示
+  detailDiv.style.display = "block";
+  document.getElementById("additional-info").innerHTML = `
+    <h2>${japaneseName} (${pokemonData.name.toUpperCase()})</h2>
+    <p>${flavorText}</p>
+  `;
 }
