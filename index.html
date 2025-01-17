@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéAPI 日本語版 詳細表示</title>
+  <title>PokéAPI 日本語版</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header>
-    <h1>PokéAPI 日本語検索対応</h1>
-    <p>ポケモン名を日本語で検索して、詳細を表示！</p>
-    <input type="text" id="search-box" placeholder="例: ピカチュウ" />
+    <h1>PokéAPI 検索対応</h1>
+    <p>ポケモン名（日本語/英語）またはIDで検索</p>
+    <input type="text" id="search-box" placeholder="例: ピカチュウ / Pikachu / 25" />
     <button onclick="searchPokemon()">検索</button>
   </header>
 
@@ -20,10 +20,7 @@
     <section id="pokemon-detail" style="display: none;">
       <canvas id="stats-chart"></canvas>
       <div id="stat-values" class="stat-values"></div>
-      <div id="additional-info" class="detail-section"></div>
-      <div id="type-compatibility" class="type-info">
-        <h3>タイプ相性</h3>
-      </div>
+      <div id="additional-info"></div>
     </section>
   </main>
 
