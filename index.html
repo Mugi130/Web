@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéAPI すぎわけ</title>
+  <title>PokéAPI 日本語版 詳細表示</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -67,11 +67,18 @@
     .stat-values p {
       margin: 5px 0;
     }
+    .type-info {
+      text-align: left;
+      margin-top: 20px;
+    }
+    .type-info p {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
   <h1>PokéAPI 日本語検索対応</h1>
-  <p>ポケモン名を日本語で検索して、詳細を表示すぎこのこの🐢正気！</p>
+  <p>ポケモン名を日本語で検索して、詳細を表示！</p>
   <input type="text" id="search-box" placeholder="例: ピカチュウ" />
   <button onclick="searchPokemon()">検索</button>
 
@@ -80,6 +87,9 @@
     <canvas id="stats-chart"></canvas>
     <div id="stat-values" class="stat-values"></div>
     <div id="additional-info" class="detail-section"></div>
+    <div id="type-compatibility" class="type-info">
+      <h3>タイプ相性</h3>
+    </div>
   </div>
 
   <script>
@@ -133,6 +143,43 @@
       });
     }
 
+    // ポケモンのタイプ相性を表示
+    async function showTypeCompatibility(types) {
+      const typeUrls = types.map((type) => type.type.url);
+      const typeData = await Promise.all(typeUrls.map((url) => fetch(url).then((res) => res.json())));
+
+      const damageRelations = {
+        doubleDamageFrom: new Set(),
+        halfDamageFrom: new Set(),
+        noDamageFrom: new Set(),
+      };
+
+      // 各タイプの相性データを統合
+      typeData.forEach((typeInfo) => {
+        typeInfo.damage_relations.double_damage_from.forEach((type) => damageRelations.doubleDamageFrom.add(type.name));
+        typeInfo.damage_relations.half_damage_from.forEach((type) => damageRelations.halfDamageFrom.add(type.name));
+        typeInfo.damage_relations.no_damage_from.forEach((type) => damageRelations.noDamageFrom.add(type.name));
+      });
+
+      // 重複するタイプを整理（例: 弱点と耐性の両方を持つ場合を考慮）
+      const weaknesses = [...damageRelations.doubleDamageFrom].filter(
+        (type) => !damageRelations.halfDamageFrom.has(type) && !damageRelations.noDamageFrom.has(type)
+      );
+      const resistances = [...damageRelations.halfDamageFrom].filter(
+        (type) => !damageRelations.noDamageFrom.has(type)
+      );
+      const immunities = [...damageRelations.noDamageFrom];
+
+      // 相性情報を表示
+      const compatibilityDiv = document.getElementById("type-compatibility");
+      compatibilityDiv.innerHTML = `
+        <h3>タイプ相性</h3>
+        <p><strong>弱点:</strong> ${weaknesses.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+        <p><strong>耐性:</strong> ${resistances.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+        <p><strong>無効:</strong> ${immunities.map((type) => `<span>${type}</span>`).join(", ") || "なし"}</p>
+      `;
+    }
+
     // 詳細情報の表示
     async function showDetails(id) {
       const pokemonUrl = `https://pokeapi.co/api/v2/pokemon/${id}`;
@@ -144,6 +191,11 @@
           fetch(pokemonUrl),
           fetch(speciesUrl),
         ]);
+
+        if (!pokemonResponse.ok || !speciesResponse.ok) {
+          throw new Error("ポケモンの詳細を取得できませんでした。");
+        }
+
         const pokemonData = await pokemonResponse.json();
         const speciesData = await speciesResponse.json();
 
@@ -235,6 +287,9 @@
           <p><strong>重さ:</strong> ${pokemonData.weight / 10} kg</p>
           <p><strong>説明:</strong> ${flavorText}</p>
         `;
+
+        // タイプ相性を表示
+        await showTypeCompatibility(pokemonData.types);
       } catch (error) {
         detailDiv.innerHTML = `<p style="color: red;">${error.message}</p>`;
       }
